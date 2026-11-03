@@ -168,6 +168,7 @@ instead of the origin's scheme.
 
 ## Related
 
+- [Chromium issue 581045139][crbug-581045139] tracks this bug.
 - [Chromium issue 41490651][crbug-41490651]: `report-to` reports for
   `frame-ancestors` violations in iframes are not sent. Different trigger,
   but also a case where a `Reporting-Endpoints` registration for a frame is
@@ -180,5 +181,6 @@ instead of the origin's scheme.
 [rep-process]: https://w3c.github.io/reporting/#process-header
 [html-secure]: https://html.spec.whatwg.org/multipage/webappapis.html#secure-context
 [chromium-src]: https://source.chromium.org/chromium/chromium/src/+/main:content/browser/renderer_host/render_frame_host_impl.cc;l=17620
+[crbug-581045139]: https://issues.chromium.org/issues/581045139
 [crbug-41490651]: https://issues.chromium.org/issues/41490651
 [wpt]: https://github.com/web-platform-tests/wpt/tree/master/content-security-policy/reporting-api
