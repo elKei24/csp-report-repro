@@ -54,11 +54,15 @@ Firefox 157.0:
 Without a browser flag the server only serves. Open `https://localhost:8443/`
 in a Chrome started with:
 
-    google-chrome --ignore-certificate-errors --short-reporting-delay \
+    google-chrome --user-data-dir=/tmp/csp-profile \
+      --ignore-certificate-errors --short-reporting-delay \
       --disable-features=LocalNetworkAccessChecks,PrivateNetworkAccessChecks \
       https://localhost:8443/
 
-The page polls `/reports` and shows what arrived.
+The page polls `/reports` and shows what arrived. The separate profile is
+necessary: the flags have no effect when the URL opens in a Chrome that is
+already running, and a certificate warning that you click through makes Chrome
+ignore `Reporting-Endpoints` completely.
 
 ### Why the flags
 
