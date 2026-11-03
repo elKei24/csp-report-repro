@@ -10,7 +10,7 @@ does not register its `Reporting-Endpoints` header, so CSP violations that use
     python3 server.py --firefox
 
 This creates a self-signed certificate, serves `https://localhost:8443`, opens
-the headless browser with a throwaway profile, waits 20 s (`WAIT=60` to change)
+the headless browser with a throwaway profile, waits 20 s (`--wait 60` to change)
 and prints which frame delivered a report. Exit code 1 if a frame stays silent.
 
 Chrome 156.0.8078.79:
