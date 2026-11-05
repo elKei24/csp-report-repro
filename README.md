@@ -13,7 +13,7 @@ This repository contains a minimal server that shows the problem.
 The server at `https://localhost:8443/` serves a page with three iframes. Each
 frame has the policy `script-src 'none'` and one inline `<script>`, so each
 frame causes exactly one CSP violation. Each frame response also carries
-`Reporting-Endpoints: csp="https://localhost:8443/report"`.
+`Reporting-Endpoints: csp="/report"`.
 
 | Frame                | `sandbox="allow-scripts"` | Policy suffix        | Chrome 156  | Firefox 157 |
 |----------------------|---------------------------|----------------------|-------------|-------------|
@@ -74,6 +74,26 @@ ignore `Reporting-Endpoints` completely.
   would hide the bug behind a different error.
 - Firefox has no flag to ignore certificate errors, so the script writes a
   `cert_override.txt` with the certificate fingerprint into the profile.
+
+## Host it with a real certificate
+
+The browser flags above are only necessary for the self-signed certificate on
+`localhost`. Behind a reverse proxy that terminates TLS, the page works in a
+normal Chrome without flags. The `Container image` workflow publishes an image
+on each push to `main`:
+
+    docker run -p 8080:8080 ghcr.io/elkei24/csp-report-repro
+
+or `docker build -t csp-report-repro .`, or `python3 server.py --http` (port
+from `PORT`, default 8080). Put a TLS proxy such as Caddy in front:
+
+    repro.example.org {
+        reverse_proxy localhost:8080
+    }
+
+Reports are kept in memory for 5 minutes and `/reports` shows them with the
+time of receipt. Chrome sends `report-to` reports about one minute after the
+violation, so wait a minute (or start Chrome with `--short-reporting-delay`).
 
 ## Why this is wrong
 

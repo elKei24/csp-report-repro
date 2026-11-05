@@ -4,6 +4,7 @@
     python3 server.py            # serves https://localhost:8443
     python3 server.py --chrome   # also launches headless Chrome against it and prints what arrived
     python3 server.py --firefox  # same with Firefox
+    python3 server.py --http     # plain HTTP on 0.0.0.0:$PORT, for a TLS-terminating proxy in front
 
 Each frame has `script-src 'none'` and one inline <script>, so one CSP violation per frame.
 """
@@ -11,12 +12,14 @@ import argparse
 import hashlib
 import http.server
 import json
+import os
 import ssl
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -31,7 +34,6 @@ FRAME_CSP = {
     "/sandbox-report-uri": "script-src 'none'; report-uri /report",
     "/plain-report-to": "script-src 'none'; report-to csp",
 }
-REPORTING_ENDPOINTS = f'csp="{ORIGIN}/report"'
 
 INDEX_HTML = """<!doctype html>
 <h1>CSP report-to repro</h1>
@@ -52,6 +54,12 @@ FRAME_HTML = """<!doctype html>
 """
 
 reports = []
+REPORT_TTL = timedelta(minutes=5)
+
+
+def drop_old_reports():
+    cutoff = (datetime.now(timezone.utc) - REPORT_TTL).isoformat(timespec="seconds")
+    reports[:] = [report for report in reports if report["received"] > cutoff]
 
 
 class ReproHandler(http.server.BaseHTTPRequestHandler):
@@ -60,10 +68,11 @@ class ReproHandler(http.server.BaseHTTPRequestHandler):
             self.respond(INDEX_HTML)
         elif self.path in FRAME_CSP:
             self.respond(FRAME_HTML, headers={
-                "Reporting-Endpoints": REPORTING_ENDPOINTS,
+                "Reporting-Endpoints": 'csp="/report"',
                 "Content-Security-Policy": FRAME_CSP[self.path],
             })
         elif self.path == "/reports":
+            drop_old_reports()
             self.respond(json.dumps(reports), content_type="application/json")
         else:
             self.send_error(404)
@@ -78,11 +87,14 @@ class ReproHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
         report = {
+            "received": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "path": self.path,
             "type": self.headers.get("Content-Type"),
             "origin": self.headers.get("Origin"),
+            "user_agent": self.headers.get("User-Agent"),
             "body": json.loads(self.rfile.read(length)),
         }
+        drop_old_reports()
         reports.append(report)
         print("REPORT", json.dumps(report), flush=True)
         self.respond("", content_type="text/plain", headers={"Access-Control-Allow-Origin": "*"})
@@ -118,11 +130,20 @@ def ensure_certificate():
     ], check=True, capture_output=True)
 
 
-def start_server():
+def start_https_server():
+    ensure_certificate()
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(CERT, KEY)
     server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), ReproHandler)
     server.socket = context.wrap_socket(server.socket, server_side=True)
+    print("serving", ORIGIN, flush=True)
+    return server
+
+
+def start_http_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", port), ReproHandler)
+    print("serving http on port", port, flush=True)
     return server
 
 
@@ -165,18 +186,17 @@ def print_summary(wait):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    browser = parser.add_mutually_exclusive_group()
-    browser.add_argument("--chrome", dest="browser", action="store_const", const=chrome_command)
-    browser.add_argument("--firefox", dest="browser", action="store_const", const=firefox_command)
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--chrome", dest="browser", action="store_const", const=chrome_command)
+    mode.add_argument("--firefox", dest="browser", action="store_const", const=firefox_command)
+    mode.add_argument("--http", action="store_true", help="plain HTTP on 0.0.0.0:$PORT (default 8080) behind a TLS proxy")
     parser.add_argument("--wait", type=int, default=20, help="seconds to give the browser (default: 20)")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    ensure_certificate()
-    server = start_server()
-    print("serving", ORIGIN, flush=True)
+    server = start_http_server() if args.http else start_https_server()
     if args.browser is None:
         server.serve_forever()
         return
