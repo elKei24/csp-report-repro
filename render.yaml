@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: csp-report-repro
+    runtime: docker
+    plan: free
