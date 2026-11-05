@@ -79,14 +79,8 @@ ignore `Reporting-Endpoints` completely.
 
 The browser flags above are only necessary for the self-signed certificate on
 `localhost`. Behind a reverse proxy that terminates TLS, the page works in a
-normal Chrome without flags.
-
-Render, free plan: the repository contains a `render.yaml`, so "New +" > "Blueprint"
-with a fork of this repository is enough. The service sleeps after 15 minutes
-without traffic and needs about one minute to wake up on the first request.
-
-Own server, with the image that the `Container image` workflow publishes on
-each push to `main`:
+normal Chrome without flags. The `Container image` workflow publishes an image
+on each push to `main`:
 
     docker run -p 8080:8080 ghcr.io/elkei24/csp-report-repro
 
