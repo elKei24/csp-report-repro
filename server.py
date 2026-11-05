@@ -130,7 +130,7 @@ def ensure_certificate():
     ], check=True, capture_output=True)
 
 
-def start_server():
+def start_https_server():
     ensure_certificate()
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(CERT, KEY)
@@ -196,7 +196,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    server = start_http_server() if args.http else start_server()
+    server = start_http_server() if args.http else start_https_server()
     if args.browser is None:
         server.serve_forever()
         return
